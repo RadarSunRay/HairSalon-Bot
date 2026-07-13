@@ -1,0 +1,5 @@
+GET http://localhost:5261/api/users
+
+###
+
+DELETE http://localhost:5261/api/users/RadarSunRay

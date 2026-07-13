@@ -1,0 +1,15 @@
+{
+  "ConnectionStrings": {
+    "Default" : "Host=localhost;Port=5432;Database=database_name;Username=postgres;Password=your_password"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "BotConfiguration" : {
+    "BotToken" : "YOUR_BOT_TOKEN"
+  }
+}

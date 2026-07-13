@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админка Парикмахерской</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .custom-control-label::before, 
+        .custom-control-label::after {
+            top: .25rem;
+            left: -2rem;
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+    </style>
+</head>
+<body class="bg-dark text-white">
+    <div class="container my-5" style="max-width: 900px;">
+        <div class="card shadow-sm bg-secondary text-white">
+            <div class="card-header bg-dark text-white">
+                <h3 class="mb-0">💇‍♀️ Панель Администратора: Клиенты парикмахерской</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="filterBooked" checked onchange="loadUsers(this.checked)">
+                    <label class="form-check-label" for="filterBooked">Только активные записи</label>
+                </div>
+                
+                <div id="statusMessage" class="alert d-none"></div>
+
+                <h4 class="mt-4 mb-3">Список клиентов</h4>
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped align-middle">
+                        <thead>
+                            <tr>
+                                <th>Telegram ник</th>
+                                <th>Телефон</th>
+                                <th>Услуга</th>
+                                <th>Мастер</th> <!-- Заголовок без (ID) -->
+                                <th>Дата</th> <!-- Новая колонка "Когда" -->
+                                <th>Время</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Сюда JavaScript вставит пользователей из БД -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Функция для загрузки списка пользователей с сервера
+        async function loadUsers(showOnlyBooked = true) {
+            try {
+                const response = await fetch('/api/users');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                let users = await response.json();
+                
+                // Фильтрация (если нужна)
+                if (showOnlyBooked) {
+                    users = users.filter(u => u.selectedService && u.selectedService !== '-' && u.selectedTime && u.selectedTime !== '-');
+                }
+
+                const tbody = document.getElementById('usersTableBody');
+                tbody.innerHTML = ''; // Очищаем таблицу
+
+                if (users.length === 0) {
+                    tbody.insertAdjacentHTML('beforeend', '<tr><td colspan="7" class="text-center">Пока нет зарегистрированных клиентов с активными записями.</td></tr>');
+                    return;
+                }
+
+                users.forEach(user => {
+                    
+                    const bookingDate = user.bookingTime ? new Date(user.bookingTime) : null;
+                    const timeDisplay = bookingDate ? bookingDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : (user.selectedTime || '-');
+                    const rawDate = user.selectedDay; 
+                    let dateDisplay = '-';
+                    
+                    if (rawDate) {
+                    const d = new Date(rawDate);
+                    // Форматируем в красивый вид: 18.07.2026
+                    dateDisplay = d.toLocaleDateString('ru-RU');
+                    }
+
+                    const row = `<tr>
+        <td><b>@${user.telegramUserName}</b></td>
+        <td>${user.phoneNumber || '<i>Не привязан</i>'}</td>
+        <td><span class="badge bg-info text-dark">${user.selectedService || '-'}</span></td>
+        <td>${user.selectedBarber ? user.selectedBarber.name : '-'}</td>
+        
+        <!-- ВОТ ОНО! Вставляем нашу отформатированную дату -->
+        <td>${dateDisplay}</td> 
+        
+        <td><span class="text-warning">${user.selectedTime || '-'}</span></td>
+        <td>
+            <button onclick="deleteBooking(${user.id})" class="btn btn-outline-danger btn-sm">
+                🗑 Удалить запись
+            </button>
+        </td>
+    </tr>`;
+    tbody.insertAdjacentHTML('beforeend', row);
+});
+            } catch (error) {
+                console.error("Ошибка загрузки пользователей:", error);
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.classList.remove('d-none');
+                statusDiv.classList.add('alert-danger');
+                statusDiv.innerText = `Не удалось загрузить клиентов. Проверьте сервер или консоль браузера: ${error.message}`;
+            }
+        }
+
+        // Функция для отмены записи
+        async function deleteBooking(userId) {
+            if (!confirm(`Вы действительно хотите отменить запись клиента с ID ${userId}?`)) {
+                return;
+            }
+
+            try {
+                // Передаем userId в маршрут
+                const response = await fetch(`/api/bookings/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                const statusDiv = document.getElementById('statusMessage');
+
+                statusDiv.classList.remove('d-none', 'alert-success', 'alert-danger');
+                if (response.ok) {
+                    statusDiv.classList.add('alert-success');
+                    statusDiv.innerText = data.message;
+                    loadUsers(document.getElementById('filterBooked').checked); // Обновляем таблицу с учетом фильтра
+                } else {
+                    statusDiv.classList.add('alert-danger');
+                    statusDiv.innerText = data.message || 'Ошибка отмены записи!';
+                }
+            } catch (error) {
+                console.error("Ошибка при выполнении запроса на отмену записи:", error);
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.classList.remove('d-none', 'alert-success');
+                statusDiv.classList.add('alert-danger');
+                statusDiv.innerText = `Произошла ошибка при попытке отменить запись: ${error.message}`;
+            }
+        }
+
+        // Загружаем пользователей сразу при открытии страницы
+        // Передаем состояние чекбокса фильтрации
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers(document.getElementById('filterBooked').checked);
+        });
+    </script>
+</body>
+</html>
