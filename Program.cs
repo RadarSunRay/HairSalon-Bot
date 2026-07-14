@@ -43,7 +43,7 @@ app.MapGet("/login", async (HttpContext context) =>
     <html>
     <head>
         <meta charset='utf-8' />
-        <title>METANIT.COM</title>
+        <title>Login</title>
     </head>
     <body>
         <h2>Login Form</h2>
@@ -105,7 +105,7 @@ app.MapPost("/login", async (HttpContext context, ApplicationContext db) =>
         var identity = new ClaimsIdentity(claims, "Cookies");
         var principal = new ClaimsPrincipal(identity);
         await context.SignInAsync(principal);
-        return Results.Ok(new {message = "Добро пожаловать в админ панель"});
+        return Results.Redirect("/");
     }
     else
     {
