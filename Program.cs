@@ -35,32 +35,9 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapFallbackToFile("index.html").RequireAuthorization();
-app.MapGet("/login", async (HttpContext context) =>
+app.MapGet("/login",() =>
 {
-    context.Response.ContentType = "text/html; charset=utf-8";
-    // html-форма для ввода логина/пароля
-    string loginForm = @"<!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset='utf-8' />
-        <title>Login</title>
-    </head>
-    <body>
-        <h2>Login Form</h2>
-        <form method='post'>
-            <p>
-                <label>Login</label><br />
-                <input name='email' />
-            </p>
-            <p>
-                <label>Password</label><br />
-                <input type='password' name='password' />
-            </p>
-            <input type='submit' value='Login' />
-        </form>
-    </body>
-    </html>";
-await context.Response.WriteAsync(loginForm);
+    return Results.File("login.html", "text/html");
 });
 
 app.MapGet("/api/users", async (ApplicationContext db) =>
@@ -89,19 +66,19 @@ app.MapPost("/login", async (HttpContext context, ApplicationContext db) =>
 {
     var form = context.Request.Form;
 
-    if (!form.ContainsKey("email") || !form.ContainsKey("password"))
+    if (!form.ContainsKey("login") || !form.ContainsKey("password"))
     {
         return Results.BadRequest(new {message = "Неправильный пароль/логин"});
     } 
 
-    string? email = form["email"];
+    string? login = form["login"];
     string? password = form["password"];
 
-    var admin = await db.admins.FirstOrDefaultAsync(u => u.name == email && u.password == password);
+    var admin = await db.admins.FirstOrDefaultAsync(u => u.name == login && u.password == password);
 
     if (admin != null)
     {
-        var claims = new List<Claim> {new Claim(ClaimTypes.Name, email)};
+        var claims = new List<Claim> {new Claim(ClaimTypes.Name, login)};
         var identity = new ClaimsIdentity(claims, "Cookies");
         var principal = new ClaimsPrincipal(identity);
         await context.SignInAsync(principal);
@@ -109,7 +86,7 @@ app.MapPost("/login", async (HttpContext context, ApplicationContext db) =>
     }
     else
     {
-        return Results.BadRequest(new {message = "Неверный логин или пароль"});
+        return Results.Redirect("/login?error=InvalidCredentials");
     }
 
 });
