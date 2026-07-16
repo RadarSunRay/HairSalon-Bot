@@ -42,9 +42,21 @@ app.MapGet("/login",() =>
 
 app.MapGet("/api/users", async (ApplicationContext db) =>
 {
-    return await db.users
+    var user = await db.users
     .Include(u => u.SelectedBarber)
     .ToListAsync();
+
+    var userDto = user.Select(user => new UserDTO
+    {
+        SelectedService = user.SelectedService,
+        TelegramUserName = user.TelegramUserName,
+        PhoneNumber = user.PhoneNumber,
+        SelectedBarber = user.SelectedBarber,
+        SelectedDay = user.SelectedDay,
+        SelectedTime = user.SelectedTime,
+        Id = user.Id
+    });
+    return Results.Ok(userDto);
 }).RequireAuthorization();
 
 app.MapDelete("/api/bookings/{userId}", async (long userId, ApplicationContext db, ITelegramBotClient botClient) =>
