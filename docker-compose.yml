@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db-service:
+    image: postgres:16
+    container_name: postgres_db_container
+    restart: always
+    environment:
+      POSTGRES_DB: hairsalon_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "1234" # Твой пароль
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # НОВЫЙ БЛОК: Проверка готовности базы данных
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hairsalon_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  bot-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hair_salon_bot_container
+    restart: always
+    ports:
+      - "5041:5041"
+    # НОВЫЙ БЛОК: Ждем, пока база не будет готова
+    depends_on:
+      db-service:
+        condition: service_healthy # Ждем, пока healthcheck базы не покажет "healthy"
+
+volumes:
+  pgdata:

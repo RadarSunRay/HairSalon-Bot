@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Bot.Models;
+using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,8 +29,19 @@ if (string.IsNullOrEmpty(botToken))
 builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
 builder.Services.AddHostedService<TelegramBotBackgroundService>();
 
+builder.Services.AddResponseCompression(options =>
+{
+    options.Providers.Add<BrotliCompressionProvider>(); 
+    options.Providers.Add<GzipCompressionProvider>();
+});
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+    await db.Database.MigrateAsync(); 
+}
+app.UseResponseCompression();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
