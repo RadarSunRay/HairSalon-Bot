@@ -145,6 +145,14 @@ public class TelegramBotBackgroundService : BackgroundService
             
             await UpdateUserState(chatId, "None");
         }
+        else if (messageText == "/admin")
+        {
+            await botClient.SendMessage(
+            chatId: chatId,
+            text: "Привет! Нажми на кнопку ниже, чтобы открыть панель управления прямо в Telegram:",
+            replyMarkup: DashBoard()
+            );
+        }
         else if (messageText == "📝 Записаться на услугу")
         {
             await UpdateUserState(chatId, "WaitingForService");
@@ -498,5 +506,16 @@ public class TelegramBotBackgroundService : BackgroundService
         rows.Add(new[] {new KeyboardButton("🔙 Назад")});
 
         return new ReplyKeyboardMarkup(rows) {ResizeKeyboard = true};
+    }
+
+    private ReplyKeyboardMarkup DashBoard()
+    {
+        var webAppButton = new KeyboardButton("Открыть дэш борд")
+        {
+            WebApp = new WebAppInfo {Url = "https://e0de3e0e6e938f.lhr.life"}
+        };
+
+        var keyboard = new ReplyKeyboardMarkup(new[] {webAppButton}) {ResizeKeyboard = true};
+        return keyboard;
     }
 }

@@ -8,12 +8,11 @@ services:
     environment:
       POSTGRES_DB: hairsalon_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "1234" # Твой пароль
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}" 
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # НОВЫЙ БЛОК: Проверка готовности базы данных
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d hairsalon_db"]
       interval: 5s
@@ -28,10 +27,9 @@ services:
     restart: always
     ports:
       - "5041:5041"
-    # НОВЫЙ БЛОК: Ждем, пока база не будет готова
     depends_on:
       db-service:
-        condition: service_healthy # Ждем, пока healthcheck базы не покажет "healthy"
+        condition: service_healthy
 
 volumes:
   pgdata:
