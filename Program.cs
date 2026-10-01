@@ -1,13 +1,13 @@
-using Microsoft.EntityFrameworkCore;
 using Bot.Data;
-using Telegram.Bot;
-using Bot.Services;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Options;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
 using Bot.Models;
+using Bot.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Telegram.Bot;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +31,7 @@ builder.Services.AddHostedService<TelegramBotBackgroundService>();
 
 builder.Services.AddResponseCompression(options =>
 {
-    options.Providers.Add<BrotliCompressionProvider>(); 
+    options.Providers.Add<BrotliCompressionProvider>();
     options.Providers.Add<GzipCompressionProvider>();
 });
 var app = builder.Build();
@@ -39,7 +39,26 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-    await db.Database.MigrateAsync(); 
+    await db.Database.MigrateAsync();
+
+    if (!await db.admins.AnyAsync())
+    {
+        var admin = new Admin
+        {
+            name = "admin",
+        };
+        var password = builder.Configuration["Admin:Password"];
+
+        if (string.IsNullOrEmpty(password))
+        {
+            throw new Exception("Admin password is not configured");
+        }
+
+        var hasher = new PasswordHasher<Admin>();
+        admin.PasswordHash = hasher.HashPassword(admin, password);
+        db.admins.Add(admin);
+        await db.SaveChangesAsync();
+    }
 }
 app.UseResponseCompression();
 app.UseStaticFiles();
@@ -47,7 +66,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapFallbackToFile("index.html").RequireAuthorization();
-app.MapGet("/login",() =>
+app.MapGet("/login", () =>
 {
     return Results.File("login.html", "text/html");
 });
@@ -75,7 +94,7 @@ app.MapDelete("/api/bookings/{userId}", async (long userId, ApplicationContext d
 {
     var user = await db.users.FirstOrDefaultAsync(u => u.Id == userId);
 
-    if (user == null) return Results.NotFound(new {message = "Пользователь не найден"});
+    if (user == null) return Results.NotFound(new { message = "Пользователь не найден" });
 
     user?.SelectedService = "-";
     user?.SelectedTime = "-";
@@ -83,7 +102,7 @@ app.MapDelete("/api/bookings/{userId}", async (long userId, ApplicationContext d
     user?.SelectedDay = null;
     await db.SaveChangesAsync();
 
-    return Results.Ok(new {message = "Пользователь удален"});
+    return Results.Ok(new { message = "Пользователь удален" });
 }).RequireAuthorization();
 
 app.MapPost("/login", async (HttpContext context, ApplicationContext db) =>
@@ -92,26 +111,30 @@ app.MapPost("/login", async (HttpContext context, ApplicationContext db) =>
 
     if (!form.ContainsKey("login") || !form.ContainsKey("password"))
     {
-        return Results.BadRequest(new {message = "Неправильный пароль/логин"});
-    } 
+        return Results.BadRequest(new { message = "Неправильный пароль/логин" });
+    }
 
     string? login = form["login"];
     string? password = form["password"];
 
-    var admin = await db.admins.FirstOrDefaultAsync(u => u.name == login && u.password == password);
+    var admin = await db.admins.FirstOrDefaultAsync(u => u.name == login);
 
-    if (admin != null)
-    {
-        var claims = new List<Claim> {new Claim(ClaimTypes.Name, login)};
-        var identity = new ClaimsIdentity(claims, "Cookies");
-        var principal = new ClaimsPrincipal(identity);
-        await context.SignInAsync(principal);
-        return Results.Redirect("/");
-    }
-    else
+    if (admin == null) return Results.Redirect("/login?error=InvalidCredentials");
+
+    var hasher = new PasswordHasher<Admin>();
+
+    var result = hasher.VerifyHashedPassword(admin, admin.PasswordHash, password!);
+
+    if (result != PasswordVerificationResult.Success)
     {
         return Results.Redirect("/login?error=InvalidCredentials");
     }
+
+    var claims = new List<Claim> { new Claim(ClaimTypes.Name, login!) };
+    var identity = new ClaimsIdentity(claims, "Cookies");
+    var principal = new ClaimsPrincipal(identity);
+    await context.SignInAsync(principal);
+    return Results.Redirect("/");
 
 });
 
