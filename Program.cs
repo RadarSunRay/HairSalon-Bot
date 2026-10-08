@@ -1,6 +1,8 @@
 using Bot.Data;
+using Bot.EndPoints;
 using Bot.Models;
 using Bot.Services;
+using Bot.State;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -34,31 +36,16 @@ builder.Services.AddResponseCompression(options =>
     options.Providers.Add<BrotliCompressionProvider>();
     options.Providers.Add<GzipCompressionProvider>();
 });
+builder.Services.AddScoped<AdminSeeder>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<Context>();
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-    await db.Database.MigrateAsync();
+    var seeder = scope.ServiceProvider.GetRequiredService<AdminSeeder>();
 
-    if (!await db.admins.AnyAsync())
-    {
-        var admin = new Admin
-        {
-            name = "admin",
-        };
-        var password = builder.Configuration["Admin:Password"];
-
-        if (string.IsNullOrEmpty(password))
-        {
-            throw new Exception("Admin password is not configured");
-        }
-
-        var hasher = new PasswordHasher<Admin>();
-        admin.PasswordHash = hasher.HashPassword(admin, password);
-        db.admins.Add(admin);
-        await db.SaveChangesAsync();
-    }
+    await seeder.SeedAsync();
 }
 app.UseResponseCompression();
 app.UseStaticFiles();
@@ -66,81 +53,13 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapFallbackToFile("index.html").RequireAuthorization();
-app.MapGet("/login", () =>
-{
-    return Results.File("login.html", "text/html");
-});
 
-app.MapGet("/api/users", async (ApplicationContext db) =>
-{
-    var user = await db.users
-    .Include(u => u.SelectedBarber)
-    .ToListAsync();
+app.MapLogin();
 
-    var userDto = user.Select(user => new UserDTO
-    {
-        SelectedService = user.SelectedService,
-        TelegramUserName = user.TelegramUserName,
-        PhoneNumber = user.PhoneNumber,
-        SelectedBarber = user.SelectedBarber,
-        SelectedDay = user.SelectedDay,
-        SelectedTime = user.SelectedTime,
-        Id = user.Id
-    });
-    return Results.Ok(userDto);
-}).RequireAuthorization();
+app.MapGetUserAsync();
 
-app.MapDelete("/api/bookings/{userId}", async (long userId, ApplicationContext db, ITelegramBotClient botClient) =>
-{
-    var user = await db.users.FirstOrDefaultAsync(u => u.Id == userId);
+app.MapDeleteUserAsync();
 
-    if (user == null) return Results.NotFound(new { message = "Пользователь не найден" });
+app.MapLogout();
 
-    user?.SelectedService = "-";
-    user?.SelectedTime = "-";
-    user?.SelectedBarberId = null;
-    user?.SelectedDay = null;
-    await db.SaveChangesAsync();
-
-    return Results.Ok(new { message = "Пользователь удален" });
-}).RequireAuthorization();
-
-app.MapPost("/login", async (HttpContext context, ApplicationContext db) =>
-{
-    var form = context.Request.Form;
-
-    if (!form.ContainsKey("login") || !form.ContainsKey("password"))
-    {
-        return Results.BadRequest(new { message = "Неправильный пароль/логин" });
-    }
-
-    string? login = form["login"];
-    string? password = form["password"];
-
-    var admin = await db.admins.FirstOrDefaultAsync(u => u.name == login);
-
-    if (admin == null) return Results.Redirect("/login?error=InvalidCredentials");
-
-    var hasher = new PasswordHasher<Admin>();
-
-    var result = hasher.VerifyHashedPassword(admin, admin.PasswordHash, password!);
-
-    if (result != PasswordVerificationResult.Success)
-    {
-        return Results.Redirect("/login?error=InvalidCredentials");
-    }
-
-    var claims = new List<Claim> { new Claim(ClaimTypes.Name, login!) };
-    var identity = new ClaimsIdentity(claims, "Cookies");
-    var principal = new ClaimsPrincipal(identity);
-    await context.SignInAsync(principal);
-    return Results.Redirect("/");
-
-});
-
-app.MapGet("/logout", async (HttpContext context) =>
-{
-    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    return Results.Redirect("/login");
-});
 app.Run();

@@ -80,8 +80,7 @@
                     
                     const bookingDate = user.bookingTime ? new Date(user.bookingTime) : null;
                     const timeDisplay = bookingDate ? bookingDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : (user.selectedTime || '-');
-                    const rawDate = user.selectedDay; 
-                    let dateDisplay = '-';
+                    const rawDate = user.selectedDay;
                     
                     if (rawDate) {
                     const d = new Date(rawDate);

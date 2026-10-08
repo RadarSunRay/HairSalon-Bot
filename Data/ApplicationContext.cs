@@ -7,7 +7,6 @@ public class ApplicationContext : DbContext
 {
     public DbSet<User> users {get;set;} = null!;
     public DbSet<Barber> barbers {get;set;} = null!;
-    public DbSet<Books> books {get;set;} = null!;
     public DbSet<Admin> admins {get;set;} = null!;
     public ApplicationContext(DbContextOptions<ApplicationContext> options) : base (options)
     {

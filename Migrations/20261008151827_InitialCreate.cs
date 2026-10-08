@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
@@ -21,7 +20,7 @@ namespace Bot.Migrations
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     name = table.Column<string>(type: "text", nullable: false),
-                    password = table.Column<string>(type: "text", nullable: false)
+                    PasswordHash = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -52,9 +51,8 @@ namespace Bot.Migrations
                     PhoneNumber = table.Column<string>(type: "text", nullable: false),
                     SelectedService = table.Column<string>(type: "text", nullable: false),
                     SelectedBarberId = table.Column<int>(type: "integer", nullable: true),
-                    currentState = table.Column<string>(type: "text", nullable: false),
                     SelectedTime = table.Column<string>(type: "text", nullable: false),
-                    SelectedDay = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    SelectedDay = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -65,39 +63,6 @@ namespace Bot.Migrations
                         principalTable: "barbers",
                         principalColumn: "Id");
                 });
-
-            migrationBuilder.CreateTable(
-                name: "books",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<long>(type: "bigint", nullable: false),
-                    BarberId = table.Column<int>(type: "integer", nullable: false),
-                    BookTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    BookDay = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_books", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_books_barbers_BarberId",
-                        column: x => x.BarberId,
-                        principalTable: "barbers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_books_users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.InsertData(
-                table: "admins",
-                columns: new[] { "id", "name", "password" },
-                values: new object[] { 1, "admin", "1234" });
 
             migrationBuilder.InsertData(
                 table: "barbers",
@@ -111,16 +76,6 @@ namespace Bot.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_books_BarberId",
-                table: "books",
-                column: "BarberId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_books_UserId",
-                table: "books",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_users_SelectedBarberId",
                 table: "users",
                 column: "SelectedBarberId");
@@ -131,9 +86,6 @@ namespace Bot.Migrations
         {
             migrationBuilder.DropTable(
                 name: "admins");
-
-            migrationBuilder.DropTable(
-                name: "books");
 
             migrationBuilder.DropTable(
                 name: "users");

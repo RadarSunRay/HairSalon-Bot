@@ -10,7 +10,6 @@ public class User
     public int? SelectedBarberId {get;set;}
     [ForeignKey("SelectedBarberId")]
     public Barber? SelectedBarber {get;set;}
-    public string currentState {get;set;} = "None";
     public string SelectedTime {get;set;} = string.Empty;
-    public DateTime? SelectedDay {get;set;}
+    public string? SelectedDay {get;set;}
 }

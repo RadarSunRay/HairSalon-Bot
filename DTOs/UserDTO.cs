@@ -6,6 +6,6 @@ public class UserDTO
     public string SelectedService {get;set;} = string.Empty;
     public Barber? SelectedBarber {get;set;}
     public string SelectedTime {get;set;} = string.Empty;
-    public DateTime? SelectedDay {get;set;}
+    public string SelectedDay { get; set; } = string.Empty;
     public long Id {get;set;}
 }
